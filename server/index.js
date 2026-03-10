@@ -2,10 +2,21 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { GameRoom } from './game/GameRoom.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 app.use(cors());
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(join(__dirname, '../client/dist')));
+  app.get('*', (req, res) => {
+    res.sendFile(join(__dirname, '../client/dist/index.html'));
+  });
+}
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
