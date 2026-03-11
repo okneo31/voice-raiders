@@ -3,6 +3,7 @@ import { useVoiceVolume } from '../hooks/useVoiceVolume';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import BossDisplay from './BossDisplay';
 import PlayerStatus from './PlayerStatus';
+import soundManager from '../audio/SoundManager';
 
 const SPELLS = ['파이어볼', '아이스볼트', '번개폭풍', '메테오', '블리자드'];
 
@@ -12,16 +13,27 @@ export default function Battle({ socket, gameState, myId }) {
   const [currentSpell, setCurrentSpell] = useState('');
   const [lastHit, setLastHit] = useState(null);
   const [screenEffect, setScreenEffect] = useState('');
+  const [spellFlash, setSpellFlash] = useState(null);
+  const [combo, setCombo] = useState(0);
   const { volume, start: startMic, stop: stopMic } = useVoiceVolume();
   const volumeRef = useRef(0);
   const lastActionTime = useRef(0);
   const hitCounter = useRef(0);
+  const comboTimerRef = useRef(null);
+  const timerWarnedRef = useRef(false);
   const me = gameState.players.find(p => p.socketId === myId);
 
   useEffect(() => { volumeRef.current = volume; }, [volume]);
 
   useEffect(() => {
     setCurrentSpell(SPELLS[Math.floor(Math.random() * SPELLS.length)]);
+  }, []);
+
+  // Combo reset timer
+  const bumpCombo = useCallback(() => {
+    setCombo(prev => prev + 1);
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    comboTimerRef.current = setTimeout(() => setCombo(0), 3000);
   }, []);
 
   const handleSpeech = useCallback((text) => {
@@ -33,6 +45,7 @@ export default function Battle({ socket, gameState, myId }) {
 
     if (lower.includes('피해') || lower.includes('회피') || lower.includes('dodge')) {
       socket.emit('battle-action', gameState.code, { type: 'dodge' });
+      soundManager.dodgeWhoosh();
       return;
     }
 
@@ -40,14 +53,22 @@ export default function Battle({ socket, gameState, myId }) {
 
     if (me.role === 'warrior') {
       socket.emit('battle-action', gameState.code, { type: 'warrior-attack', value: volumeRef.current });
+      soundManager.swordSlash();
+      bumpCombo();
     } else if (me.role === 'mage') {
       const accuracy = calculateAccuracy(text, currentSpell);
       socket.emit('battle-action', gameState.code, { type: 'mage-attack', value: accuracy });
+      soundManager.magicCast();
+      setSpellFlash({ text: currentSpell, key: Date.now() });
+      setTimeout(() => setSpellFlash(null), 700);
       setCurrentSpell(SPELLS[Math.floor(Math.random() * SPELLS.length)]);
+      bumpCombo();
     } else if (me.role === 'healer') {
       socket.emit('battle-action', gameState.code, { type: 'healer-action', value: volumeRef.current });
+      soundManager.healChime();
+      bumpCombo();
     }
-  }, [socket, gameState.code, me, currentSpell]);
+  }, [socket, gameState.code, me, currentSpell, bumpCombo]);
 
   const { start: startSTT, stop: stopSTT } = useSpeechRecognition({ onResult: handleSpeech });
 
@@ -65,12 +86,31 @@ export default function Battle({ socket, gameState, myId }) {
     return () => socket.off('timer', onTimer);
   }, [socket]);
 
+  // Timer warning at 10 seconds
+  useEffect(() => {
+    if (timeLeft <= 10 && timeLeft > 0) {
+      if (!timerWarnedRef.current || timeLeft <= 5) {
+        soundManager.timerWarning();
+        timerWarnedRef.current = true;
+      }
+    } else {
+      timerWarnedRef.current = false;
+    }
+  }, [timeLeft]);
+
   useEffect(() => {
     function onBattleUpdate(data) {
       if (data.damage) {
         setLastHit({ type: 'damage', value: data.damage, key: ++hitCounter.current });
         setScreenEffect('');
         requestAnimationFrame(() => setScreenEffect('hit-flash'));
+        // Play appropriate sound based on action type
+        if (data.actionType === 'mage-attack') {
+          // magicCast already played on action
+        } else {
+          // swordSlash already played on action
+        }
+        bumpCombo();
       } else if (data.healing) {
         setLastHit({ type: 'heal', value: data.healing, key: ++hitCounter.current });
         setScreenEffect('');
@@ -78,6 +118,7 @@ export default function Battle({ socket, gameState, myId }) {
       } else if (data.dodged) {
         setScreenEffect('');
         requestAnimationFrame(() => setScreenEffect('dodge-anim'));
+        soundManager.dodgeWhoosh();
       }
       const msg = data.damage
         ? `⚔️ ${data.playerName}: ${data.damage} 데미지!`
@@ -88,7 +129,8 @@ export default function Battle({ socket, gameState, myId }) {
     }
     function onBossAttack(data) {
       setScreenEffect('');
-      requestAnimationFrame(() => setScreenEffect('screen-shake'));
+      requestAnimationFrame(() => setScreenEffect('screen-shake-hard'));
+      soundManager.bossImpact();
       data.targets.forEach(t => {
         const msg = t.dodged
           ? `🏃 ${t.name} 회피 성공!`
@@ -102,7 +144,7 @@ export default function Battle({ socket, gameState, myId }) {
       socket.off('battle-update', onBattleUpdate);
       socket.off('boss-attack', onBossAttack);
     };
-  }, [socket]);
+  }, [socket, bumpCombo]);
 
   // Clear screen effect
   useEffect(() => {
@@ -115,13 +157,24 @@ export default function Battle({ socket, gameState, myId }) {
   const battleState = gameState.battle;
   if (!battleState) return null;
 
+  const isTimerUrgent = timeLeft <= 10;
+
   return (
     <div className={`container ${screenEffect}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 12 }}>
+      {spellFlash && (
+        <div className="spell-flash" key={spellFlash.key}>✨ {spellFlash.text}</div>
+      )}
+      {combo >= 2 && (
+        <div className="combo-counter" key={combo}>
+          🔥 {combo} COMBO!
+        </div>
+      )}
+
       <div style={{ textAlign: 'center' }}>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           라운드 {gameState.round}/{gameState.maxRounds} — 전투
         </span>
-        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: timeLeft <= 10 ? 'var(--accent-red)' : 'var(--accent-gold)' }}>
+        <div className={isTimerUrgent ? 'timer-urgent' : ''} style={{ fontSize: '1.5rem', fontWeight: 700, color: timeLeft <= 10 ? 'var(--accent-red)' : 'var(--accent-gold)' }}>
           ⏱ {timeLeft}초
         </div>
       </div>
@@ -163,6 +216,8 @@ export default function Battle({ socket, gameState, myId }) {
             if (now - lastActionTime.current < 1000) return;
             lastActionTime.current = now;
             socket.emit('battle-action', gameState.code, { type: 'warrior-attack', value: 0.7 });
+            soundManager.swordSlash();
+            bumpCombo();
           }} style={{ flex: 1 }}>
             🗡️ 공격
           </button>
@@ -173,7 +228,11 @@ export default function Battle({ socket, gameState, myId }) {
             if (now - lastActionTime.current < 1000) return;
             lastActionTime.current = now;
             socket.emit('battle-action', gameState.code, { type: 'mage-attack', value: 0.85 });
+            soundManager.magicCast();
+            setSpellFlash({ text: currentSpell, key: Date.now() });
+            setTimeout(() => setSpellFlash(null), 700);
             setCurrentSpell(SPELLS[Math.floor(Math.random() * SPELLS.length)]);
+            bumpCombo();
           }} style={{ flex: 1, background: 'var(--accent-purple)' }}>
             🔮 {currentSpell}
           </button>
@@ -184,12 +243,15 @@ export default function Battle({ socket, gameState, myId }) {
             if (now - lastActionTime.current < 1000) return;
             lastActionTime.current = now;
             socket.emit('battle-action', gameState.code, { type: 'healer-action', value: 0.15 });
+            soundManager.healChime();
+            bumpCombo();
           }} style={{ flex: 1, background: 'var(--accent-green)' }}>
             💚 치유
           </button>
         )}
         <button className="btn-danger" onClick={() => {
           socket.emit('battle-action', gameState.code, { type: 'dodge' });
+          soundManager.dodgeWhoosh();
         }} style={{ minWidth: 80 }}>
           🏃 회피
         </button>

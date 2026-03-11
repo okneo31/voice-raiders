@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useVoiceVolume } from '../hooks/useVoiceVolume';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { GAME_CONFIG } from '../game/constants';
+import soundManager from '../audio/SoundManager';
+import ttsManager from '../audio/TTSManager';
 
 function parseBidAmount(text) {
   const cleaned = text.replace(/\s/g, '');
@@ -13,26 +15,54 @@ function parseBidAmount(text) {
   return isNaN(num) ? null : num;
 }
 
+function spawnCoinParticles(x, y) {
+  for (let i = 0; i < 5; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'coin-particle';
+    coin.textContent = '💰';
+    coin.style.left = `${x + (Math.random() - 0.5) * 40}px`;
+    coin.style.top = `${y}px`;
+    coin.style.setProperty('--coin-x', `${(Math.random() - 0.5) * 60}px`);
+    document.body.appendChild(coin);
+    setTimeout(() => coin.remove(), 800);
+  }
+}
+
 export default function Auction({ socket, gameState, myId }) {
   const [timeLeft, setTimeLeft] = useState(GAME_CONFIG.AUCTION_DURATION);
   const [lastBid, setLastBid] = useState(null);
   const [bidInput, setBidInput] = useState('');
+  const [bidPopup, setBidPopup] = useState(null);
+  const [outbidFlash, setOutbidFlash] = useState(false);
   const { volume, start: startMic, stop: stopMic } = useVoiceVolume();
   const volumeRef = useRef(0);
+  const prevHighestRef = useRef(null);
+  const timerWarnedRef = useRef(false);
 
   useEffect(() => { volumeRef.current = volume; }, [volume]);
+
+  const doBid = useCallback((amount) => {
+    socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+    soundManager.bidConfirm();
+    ttsManager.confirmBid(amount);
+    setBidPopup({ amount, key: Date.now() });
+    setTimeout(() => setBidPopup(null), 800);
+    // Coin particles from center
+    spawnCoinParticles(window.innerWidth / 2, window.innerHeight * 0.4);
+  }, [socket, gameState.code]);
 
   const handleSpeech = useCallback((text) => {
     const lower = text.toLowerCase();
     if (lower.includes('패스') || lower.includes('pass')) {
       socket.emit('auction-pass', gameState.code);
+      soundManager.passSound();
       return;
     }
     const amount = parseBidAmount(text);
     if (amount && amount > 0) {
-      socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+      doBid(amount);
     }
-  }, [socket, gameState.code]);
+  }, [socket, gameState.code, doBid]);
 
   const { start: startSTT, stop: stopSTT } = useSpeechRecognition({ onResult: handleSpeech });
 
@@ -51,24 +81,57 @@ export default function Auction({ socket, gameState, myId }) {
     return () => socket.off('timer', onTimer);
   }, [socket]);
 
+  // Timer warning at 10 seconds
+  useEffect(() => {
+    if (timeLeft <= 10 && timeLeft > 0) {
+      if (!timerWarnedRef.current || timeLeft <= 5) {
+        soundManager.timerWarning();
+        timerWarnedRef.current = true;
+      }
+    } else {
+      timerWarnedRef.current = false;
+    }
+  }, [timeLeft]);
+
   useEffect(() => {
     socket.on('bid-updated', setLastBid);
     return () => socket.off('bid-updated', setLastBid);
   }, [socket]);
 
-  const item = gameState.auction?.currentItem;
+  // Detect outbid
   const highest = gameState.auction?.highestBid;
+  useEffect(() => {
+    if (highest && prevHighestRef.current) {
+      const wasWinning = prevHighestRef.current.playerId === myId;
+      const nowWinning = highest.playerId === myId;
+      if (wasWinning && !nowWinning) {
+        soundManager.outbidAlert();
+        setOutbidFlash(true);
+        setTimeout(() => setOutbidFlash(false), 600);
+      }
+    }
+    prevHighestRef.current = highest;
+  }, [highest, myId]);
 
+  const item = gameState.auction?.currentItem;
   if (!item) return null;
+
+  const isTimerUrgent = timeLeft <= 10;
 
   return (
     <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16 }}>
+      {bidPopup && (
+        <div className="bid-popup" key={bidPopup.key}>💰 {bidPopup.amount}G</div>
+      )}
+
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           라운드 {gameState.round}/{gameState.maxRounds} — 경매
           ({(gameState.auction?.itemIndex || 0) + 1}/{gameState.auction?.totalItems || '?'})
         </div>
-        <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent-gold)' }}>⏱ {timeLeft}초</div>
+        <div className={isTimerUrgent ? 'timer-urgent' : ''} style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent-gold)' }}>
+          ⏱ {timeLeft}초
+        </div>
         <div className="volume-bar" style={{ marginTop: 8 }}>
           <div className="volume-bar-fill" style={{ width: `${volume * 100}%` }} />
         </div>
@@ -86,7 +149,7 @@ export default function Auction({ socket, gameState, myId }) {
       </div>
 
       {highest && (
-        <div className="card" style={{
+        <div className={`card ${outbidFlash ? 'outbid-flash' : ''}`} style={{
           textAlign: 'center', borderColor: highest.playerId === myId ? 'var(--accent-green)' : 'var(--accent-red)',
           borderWidth: 2, borderStyle: 'solid',
         }}>
@@ -110,7 +173,7 @@ export default function Auction({ socket, gameState, myId }) {
             if (e.key === 'Enter' && bidInput) {
               const amount = parseInt(bidInput, 10);
               if (amount > 0) {
-                socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+                doBid(amount);
                 setBidInput('');
               }
             }
@@ -126,7 +189,7 @@ export default function Auction({ socket, gameState, myId }) {
           onClick={() => {
             const amount = parseInt(bidInput, 10);
             if (amount > 0) {
-              socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+              doBid(amount);
               setBidInput('');
             }
           }}
@@ -137,7 +200,10 @@ export default function Auction({ socket, gameState, myId }) {
         </button>
         <button
           className="btn-secondary"
-          onClick={() => socket.emit('auction-pass', gameState.code)}
+          onClick={() => {
+            socket.emit('auction-pass', gameState.code);
+            soundManager.passSound();
+          }}
         >
           패스
         </button>

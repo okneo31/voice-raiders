@@ -1,7 +1,25 @@
+import { useEffect, useRef } from 'react';
 import { ROLES } from '../game/constants';
+import soundManager from '../audio/SoundManager';
+import ttsManager from '../audio/TTSManager';
 
 export default function Results({ gameState, myId, onPlayAgain }) {
   const results = gameState;
+  const soundPlayedRef = useRef(false);
+
+  useEffect(() => {
+    if (results && !soundPlayedRef.current) {
+      soundPlayedRef.current = true;
+      if (results.cleared) {
+        soundManager.victory();
+        setTimeout(() => ttsManager.announceVictory(), 500);
+      } else {
+        soundManager.defeat();
+        setTimeout(() => ttsManager.announceDefeat(), 500);
+      }
+    }
+  }, [results]);
+
   if (!results) return null;
 
   const sortedPlayers = [...results.players].sort(

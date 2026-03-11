@@ -1,0 +1,196 @@
+/* === Auction Effects === */
+
+@keyframes bidPopup {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  30% { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.9); }
+}
+.bid-popup {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  text-shadow: 0 2px 12px rgba(251, 191, 36, 0.5);
+  pointer-events: none;
+  z-index: 100;
+  animation: bidPopup 0.8s ease-out forwards;
+}
+
+@keyframes outbidFlash {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+  50% { box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+.outbid-flash {
+  animation: outbidFlash 0.6s ease-out;
+}
+
+@keyframes coinFloat {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--coin-x, 20px), -60px) scale(0.5); }
+}
+.coin-particle {
+  position: fixed;
+  font-size: 1.2rem;
+  pointer-events: none;
+  z-index: 99;
+  animation: coinFloat 0.8s ease-out forwards;
+}
+
+/* === Timer Effects === */
+
+@keyframes timerPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.7; }
+}
+.timer-urgent {
+  animation: timerPulse 0.6s ease-in-out infinite;
+  color: var(--accent-red) !important;
+}
+
+/* === Battle Effects === */
+
+@keyframes critPop {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.4); }
+  60% { transform: translateY(-25px) scale(1.1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.8); }
+}
+.crit-pop {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--accent-red);
+  text-shadow: 0 0 16px rgba(239, 68, 68, 0.7), 0 2px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  z-index: 100;
+  animation: critPop 1s ease-out forwards;
+}
+
+@keyframes spellFlash {
+  0% { opacity: 0; transform: scale(0.5); }
+  20% { opacity: 1; transform: scale(1.2); }
+  60% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+.spell-flash {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--accent-purple);
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+  pointer-events: none;
+  z-index: 100;
+  animation: spellFlash 0.7s ease-out forwards;
+}
+
+@keyframes healFloat {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(0.6); }
+}
+.heal-particle {
+  position: absolute;
+  font-size: 1rem;
+  pointer-events: none;
+  z-index: 99;
+  animation: healFloat 1s ease-out forwards;
+}
+
+/* === Boss Effects === */
+
+@keyframes bossExplode {
+  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+  20% { transform: scale(1.3); filter: brightness(2); }
+  40% { transform: scale(0.8); filter: brightness(3); }
+  60% { transform: scale(1.5); filter: brightness(2); opacity: 0.7; }
+  80% { transform: scale(0.5); filter: brightness(4); opacity: 0.4; }
+  100% { transform: scale(0); filter: brightness(5); opacity: 0; }
+}
+.boss-explode {
+  animation: bossExplode 1.2s ease-out forwards;
+}
+
+/* === Phase Transition === */
+
+@keyframes phaseSlideIn {
+  0% { opacity: 0; transform: translateY(-30px) scale(0.8); }
+  30% { opacity: 1; transform: translateY(0) scale(1.05); }
+  70% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(20px) scale(0.9); }
+}
+.phase-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 15, 35, 0.85);
+  z-index: 200;
+  pointer-events: none;
+}
+.phase-overlay-text {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--accent-gold);
+  text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+  animation: phaseSlideIn 1.5s ease-out forwards;
+}
+
+/* === Combo Counter === */
+
+@keyframes comboAppear {
+  0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+  40% { opacity: 1; transform: scale(1.2) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+@keyframes comboPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.combo-counter {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  background: rgba(251, 191, 36, 0.15);
+  border: 2px solid var(--accent-gold);
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  z-index: 50;
+  animation: comboAppear 0.3s ease-out;
+}
+.combo-counter.combo-pulse {
+  animation: comboPulse 0.3s ease-out;
+}
+
+/* === Enhanced Screen Shake === */
+
+@keyframes screenShakeHard {
+  0%, 100% { transform: translate(0); }
+  10% { transform: translate(-6px, 4px); }
+  20% { transform: translate(6px, -4px); }
+  30% { transform: translate(-5px, -3px); }
+  40% { transform: translate(5px, 3px); }
+  50% { transform: translate(-4px, 5px); }
+  60% { transform: translate(4px, -5px); }
+  70% { transform: translate(-3px, 2px); }
+  80% { transform: translate(3px, -2px); }
+  90% { transform: translate(-2px, 1px); }
+}
+.screen-shake-hard {
+  animation: screenShakeHard 0.5s ease-out;
+}
