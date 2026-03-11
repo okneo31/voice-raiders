@@ -5,6 +5,11 @@ export class BattlePhase {
     this.players = players;
     this.round = round;
     this.boss = getBossForRound(round);
+    // 인원수에 따라 보스 HP/공격력 조정
+    const playerScale = Math.max(0.35, players.length / 3);
+    this.boss.hp = Math.round(this.boss.hp * playerScale);
+    this.boss.maxHp = this.boss.hp;
+    this.boss.attack = Math.round(this.boss.attack * Math.max(0.5, playerScale));
     this.dodging = new Set();
     this.attackCooldowns = new Map();
   }

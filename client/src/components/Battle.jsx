@@ -10,9 +10,12 @@ export default function Battle({ socket, gameState, myId }) {
   const [timeLeft, setTimeLeft] = useState(60);
   const [actionLog, setActionLog] = useState([]);
   const [currentSpell, setCurrentSpell] = useState('');
+  const [lastHit, setLastHit] = useState(null);
+  const [screenEffect, setScreenEffect] = useState('');
   const { volume, start: startMic, stop: stopMic } = useVoiceVolume();
   const volumeRef = useRef(0);
   const lastActionTime = useRef(0);
+  const hitCounter = useRef(0);
   const me = gameState.players.find(p => p.socketId === myId);
 
   useEffect(() => { volumeRef.current = volume; }, [volume]);
@@ -54,7 +57,6 @@ export default function Battle({ socket, gameState, myId }) {
     return () => { stopMic(); stopSTT(); };
   }, [startMic, stopMic, startSTT, stopSTT]);
 
-  // Server-driven timer
   useEffect(() => {
     function onTimer({ phase, timeLeft: t }) {
       if (phase === 'battle') setTimeLeft(t);
@@ -63,21 +65,34 @@ export default function Battle({ socket, gameState, myId }) {
     return () => socket.off('timer', onTimer);
   }, [socket]);
 
-  // Listen for battle updates
   useEffect(() => {
     function onBattleUpdate(data) {
+      if (data.damage) {
+        setLastHit({ type: 'damage', value: data.damage, key: ++hitCounter.current });
+        setScreenEffect('');
+        requestAnimationFrame(() => setScreenEffect('hit-flash'));
+      } else if (data.healing) {
+        setLastHit({ type: 'heal', value: data.healing, key: ++hitCounter.current });
+        setScreenEffect('');
+        requestAnimationFrame(() => setScreenEffect('heal-flash'));
+      } else if (data.dodged) {
+        setScreenEffect('');
+        requestAnimationFrame(() => setScreenEffect('dodge-anim'));
+      }
       const msg = data.damage
-        ? `${data.playerName}: ${data.damage} 데미지!`
+        ? `⚔️ ${data.playerName}: ${data.damage} 데미지!`
         : data.healing
-        ? `${data.playerName}: ${data.healing} 치유!`
-        : `${data.playerName}: 회피!`;
+        ? `💚 ${data.playerName}: ${data.healing} 치유!`
+        : `🏃 ${data.playerName}: 회피!`;
       setActionLog(prev => [...prev.slice(-4), msg]);
     }
     function onBossAttack(data) {
+      setScreenEffect('');
+      requestAnimationFrame(() => setScreenEffect('screen-shake'));
       data.targets.forEach(t => {
         const msg = t.dodged
-          ? `${t.name} 회피 성공!`
-          : `${t.name} ${t.damage} 피해!`;
+          ? `🏃 ${t.name} 회피 성공!`
+          : `💥 ${t.name} ${t.damage} 피해!`;
         setActionLog(prev => [...prev.slice(-4), msg]);
       });
     }
@@ -89,11 +104,19 @@ export default function Battle({ socket, gameState, myId }) {
     };
   }, [socket]);
 
+  // Clear screen effect
+  useEffect(() => {
+    if (screenEffect) {
+      const t = setTimeout(() => setScreenEffect(''), 500);
+      return () => clearTimeout(t);
+    }
+  }, [screenEffect]);
+
   const battleState = gameState.battle;
   if (!battleState) return null;
 
   return (
-    <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 12 }}>
+    <div className={`container ${screenEffect}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 12 }}>
       <div style={{ textAlign: 'center' }}>
         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           라운드 {gameState.round}/{gameState.maxRounds} — 전투
@@ -103,7 +126,7 @@ export default function Battle({ socket, gameState, myId }) {
         </div>
       </div>
 
-      <BossDisplay boss={battleState.boss} />
+      <BossDisplay boss={battleState.boss} lastHit={lastHit} />
 
       <div className="volume-bar" style={{ height: 12 }}>
         <div className="volume-bar-fill" style={{
@@ -182,9 +205,14 @@ export default function Battle({ socket, gameState, myId }) {
         ))}
       </div>
 
-      <div className="card" style={{ maxHeight: 100, overflow: 'auto', fontSize: '0.8rem' }}>
+      <div className="card" style={{ maxHeight: 120, overflow: 'auto', fontSize: '0.8rem' }}>
         {actionLog.map((msg, i) => (
-          <div key={i} style={{ padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{msg}</div>
+          <div key={i} style={{
+            padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)',
+            color: msg.startsWith('💥') ? 'var(--accent-red)' :
+                   msg.startsWith('💚') ? 'var(--accent-green)' :
+                   msg.startsWith('⚔️') ? 'var(--accent-gold)' : 'var(--text-primary)',
+          }}>{msg}</div>
         ))}
         {actionLog.length === 0 && <div style={{ color: 'var(--text-secondary)' }}>전투 시작...</div>}
       </div>
