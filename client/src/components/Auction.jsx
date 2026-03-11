@@ -66,6 +66,7 @@ export default function Auction({ socket, gameState, myId }) {
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           라운드 {gameState.round}/{gameState.maxRounds} — 경매
+          ({(gameState.auction?.itemIndex || 0) + 1}/{gameState.auction?.totalItems || '?'})
         </div>
         <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent-gold)' }}>⏱ {timeLeft}초</div>
         <div className="volume-bar" style={{ marginTop: 8 }}>

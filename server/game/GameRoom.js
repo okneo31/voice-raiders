@@ -79,6 +79,8 @@ export class GameRoom {
       auction: this.auction ? {
         currentItem: this.auction.getCurrentItem(),
         highestBid: this.auction.highestBid,
+        itemIndex: this.auction.currentItemIndex,
+        totalItems: this.auction.items.length,
       } : null,
       battle: this.battle ? this.battle.getState() : null,
     };

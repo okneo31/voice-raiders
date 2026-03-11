@@ -3,7 +3,8 @@ import { getRandomItems } from './items.js';
 export class AuctionPhase {
   constructor(players, round) {
     this.round = round;
-    this.items = getRandomItems(2, round);
+    const itemCount = players.length <= 2 ? 1 : 2;
+    this.items = getRandomItems(itemCount, round);
     this.currentItemIndex = 0;
     this.highestBid = null;
     this.bids = [];
