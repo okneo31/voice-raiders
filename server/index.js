@@ -135,7 +135,7 @@ io.on('connection', (socket) => {
 
   socket.on('start-game', (code) => {
     const room = rooms.get(code);
-    if (!room || !room.allRolesSelected() || room.players.length < 2) return;
+    if (!room || !room.allRolesSelected() || room.players.length < 1) return;
     room.startGame();
     io.to(code).emit('game-state', room.getState());
     startAuctionTimer(code);

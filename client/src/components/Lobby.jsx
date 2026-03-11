@@ -11,7 +11,7 @@ export default function Lobby({ socket, roomCode, players, myId, onStart }) {
 
   const me = players.find(p => p.socketId === myId);
   const takenRoles = players.filter(p => p.role && p.socketId !== myId).map(p => p.role);
-  const allReady = players.length >= 2 && players.every(p => p.role);
+  const allReady = players.length >= 1 && players.every(p => p.role);
 
   function handleCreate() {
     if (!name.trim()) return;
