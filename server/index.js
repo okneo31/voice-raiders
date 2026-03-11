@@ -13,7 +13,7 @@ app.use(cors());
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(join(__dirname, '../client/dist')));
-  app.get('*', (req, res) => {
+  app.get('{*path}', (req, res) => {
     res.sendFile(join(__dirname, '../client/dist/index.html'));
   });
 }
