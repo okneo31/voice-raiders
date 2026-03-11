@@ -46,8 +46,13 @@ export class AuctionPhase {
 
   finalizeCurrentItem(players) {
     const item = this.getCurrentItem();
+
     if (!item || !this.highestBid) {
-      return { winner: null, item: null };
+      this.currentItemIndex++;
+      this.highestBid = null;
+      this.bids = [];
+      this.passedPlayers.clear();
+      return { winner: null, item: item || null };
     }
 
     const winner = players.find(p => p.socketId === this.highestBid.playerId);
