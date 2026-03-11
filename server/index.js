@@ -107,6 +107,7 @@ io.on('connection', (socket) => {
     rooms.set(code, room);
     socket.join(code);
     callback({ success: true, code, player: room.getPlayer(socket.id).toJSON() });
+    io.to(code).emit('room-updated', room.getState());
   });
 
   socket.on('join-room', (code, playerName, callback) => {
