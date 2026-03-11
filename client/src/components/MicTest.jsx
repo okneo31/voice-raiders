@@ -28,6 +28,15 @@ export default function MicTest({ onCalibrated }) {
           확인
         </button>
       )}
+      {onCalibrated && (
+        <button
+          className="btn-secondary"
+          onClick={onCalibrated}
+          style={{ marginTop: 8, fontSize: '0.85rem' }}
+        >
+          ⌨️ 마이크 없이 진행
+        </button>
+      )}
     </div>
   );
 }

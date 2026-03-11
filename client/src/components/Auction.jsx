@@ -16,6 +16,7 @@ function parseBidAmount(text) {
 export default function Auction({ socket, gameState, myId }) {
   const [timeLeft, setTimeLeft] = useState(GAME_CONFIG.AUCTION_DURATION);
   const [lastBid, setLastBid] = useState(null);
+  const [bidInput, setBidInput] = useState('');
   const { volume, start: startMic, stop: stopMic } = useVoiceVolume();
   const volumeRef = useRef(0);
 
@@ -98,9 +99,51 @@ export default function Auction({ socket, gameState, myId }) {
         </div>
       )}
 
-      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-        🎤 금액을 외치세요! ("오십!", "50!") <br />
-        🤫 "패스!" 하면 포기
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="number"
+          placeholder="입찰 금액"
+          value={bidInput}
+          onChange={e => setBidInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && bidInput) {
+              const amount = parseInt(bidInput, 10);
+              if (amount > 0) {
+                socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+                setBidInput('');
+              }
+            }
+          }}
+          style={{
+            flex: 1, padding: '12px 16px', borderRadius: 12,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '1rem',
+          }}
+        />
+        <button
+          className="btn-primary"
+          onClick={() => {
+            const amount = parseInt(bidInput, 10);
+            if (amount > 0) {
+              socket.emit('auction-bid', gameState.code, amount, volumeRef.current);
+              setBidInput('');
+            }
+          }}
+          disabled={!bidInput}
+          style={{ whiteSpace: 'nowrap' }}
+        >
+          입찰
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={() => socket.emit('auction-pass', gameState.code)}
+        >
+          패스
+        </button>
+      </div>
+
+      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+        🎤 음성으로도 가능: 금액을 외치거나 "패스!"
       </div>
 
       <div className="card">

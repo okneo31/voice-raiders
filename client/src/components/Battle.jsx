@@ -133,8 +133,47 @@ export default function Battle({ socket, gameState, myId }) {
         </div>
       )}
 
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-        ⚠️ "피해!" 라고 외치면 보스 공격 회피
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        {me?.role === 'warrior' && (
+          <button className="btn-primary" onClick={() => {
+            const now = Date.now();
+            if (now - lastActionTime.current < 1000) return;
+            lastActionTime.current = now;
+            socket.emit('battle-action', gameState.code, { type: 'warrior-attack', value: 0.7 });
+          }} style={{ flex: 1 }}>
+            🗡️ 공격
+          </button>
+        )}
+        {me?.role === 'mage' && (
+          <button className="btn-primary" onClick={() => {
+            const now = Date.now();
+            if (now - lastActionTime.current < 1000) return;
+            lastActionTime.current = now;
+            socket.emit('battle-action', gameState.code, { type: 'mage-attack', value: 0.85 });
+            setCurrentSpell(SPELLS[Math.floor(Math.random() * SPELLS.length)]);
+          }} style={{ flex: 1, background: 'var(--accent-purple)' }}>
+            🔮 {currentSpell}
+          </button>
+        )}
+        {me?.role === 'healer' && (
+          <button className="btn-primary" onClick={() => {
+            const now = Date.now();
+            if (now - lastActionTime.current < 1000) return;
+            lastActionTime.current = now;
+            socket.emit('battle-action', gameState.code, { type: 'healer-action', value: 0.15 });
+          }} style={{ flex: 1, background: 'var(--accent-green)' }}>
+            💚 치유
+          </button>
+        )}
+        <button className="btn-danger" onClick={() => {
+          socket.emit('battle-action', gameState.code, { type: 'dodge' });
+        }} style={{ minWidth: 80 }}>
+          🏃 회피
+        </button>
+      </div>
+
+      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+        🎤 음성으로도 가능 | ⚠️ "피해!" 외치면 회피
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch index.js",
-    "test": "node --experimental-vm-modules G:/voicegame/node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
