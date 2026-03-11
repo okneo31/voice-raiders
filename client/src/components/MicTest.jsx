@@ -33,17 +33,19 @@ export default function MicTest({ onCalibrated }) {
   const { start: startSTT, stop: stopSTT } = useSpeechRecognition({ onResult: handleSpeech });
 
   useEffect(() => {
-    startMic();
-    return () => stopMic();
-  }, [startMic, stopMic]);
-
-  useEffect(() => {
-    if (step === 'stt') {
-      pickNewWord();
-      startSTT();
-      return () => stopSTT();
+    if (step === 'volume') {
+      startMic();
+      return () => stopMic();
+    } else {
+      // STT 단계: 볼륨 모니터링 중지 후 음성인식 시작 (마이크 충돌 방지)
+      stopMic();
+      const timer = setTimeout(() => {
+        pickNewWord();
+        startSTT();
+      }, 300);
+      return () => { clearTimeout(timer); stopSTT(); };
     }
-  }, [step, startSTT, stopSTT, pickNewWord]);
+  }, [step, startMic, stopMic, startSTT, stopSTT, pickNewWord]);
 
   if (step === 'volume') {
     return (
@@ -90,10 +92,6 @@ export default function MicTest({ onCalibrated }) {
         padding: '16px', background: 'rgba(139,92,246,0.15)', borderRadius: 12, marginBottom: 12,
       }}>
         🔮 "{targetWord}"
-      </div>
-
-      <div className="volume-bar" style={{ marginBottom: 8, height: 8 }}>
-        <div className="volume-bar-fill" style={{ width: `${volume * 100}%` }} />
       </div>
 
       {lastHeard && (
