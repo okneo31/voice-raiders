@@ -40,6 +40,10 @@ export class AuctionPhase {
     this.passedPlayers.add(playerId);
   }
 
+  allPassed(players) {
+    return players.every(p => this.passedPlayers.has(p.socketId));
+  }
+
   finalizeCurrentItem(players) {
     const item = this.getCurrentItem();
     if (!item || !this.highestBid) {

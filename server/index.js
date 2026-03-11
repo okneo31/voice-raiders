@@ -159,6 +159,20 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     if (!room || room.phase !== 'auction') return;
     room.auction.pass(socket.id);
+
+    if (room.auction.allPassed(room.players)) {
+      clearRoomTimers(code);
+      const result = room.auction.finalizeCurrentItem(room.players);
+      io.to(code).emit('auction-result', result);
+      if (room.auction.isComplete()) {
+        room.startBattle();
+        io.to(code).emit('game-state', room.getState());
+        startBattleTimers(code);
+      } else {
+        io.to(code).emit('game-state', room.getState());
+        startAuctionTimer(code);
+      }
+    }
   });
 
   socket.on('battle-action', (code, { type, value }) => {
